@@ -1,0 +1,70 @@
+---
+name: CI
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+jobs:
+  ok:
+    needs:
+      - lint
+      - test
+    if: failure()
+    permissions: {}
+    runs-on: ubuntu-slim
+    steps:
+      - run: exit 1
+  test:
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        id: setup-go
+        with:
+          cache: true
+          go-version-file: go.mod
+      - run: go mod download
+      - name: ahead time build
+        run: go test -c -o /dev/null -coverpkg=./... -coverprofile=./coverage.out ./...
+      - name: go test
+        run: go test -coverpkg=./... -coverprofile=./coverage.out -timeout=30s ./...
+      - uses: k1LoW/octocov-action@b3b6ee60482a667950f87553abf1df63217235d9 # v1.5.1
+        with:
+          version: v0.73.0
+  lint:
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        id: setup-go
+        with:
+          cache: true
+          go-version-file: go.mod
+      - run: go mod download
+      - name: ahead time build
+        run: go test -c -o /dev/null -coverpkg=./... -coverprofile=./coverage.out ./...
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.12.2
+          install-only: true
+      - name: golangci-lint
+        id: lint
+        run: golangci-lint run ./...
+        continue-on-error: true
+      - uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
+        with:
+          sarif_file: golangci-lint.sarif
+          category: golangci-lint
+      - name: report issues
+        if: steps.lint.outcome == 'failure'
+        run: exit 1
