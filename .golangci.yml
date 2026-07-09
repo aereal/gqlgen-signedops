@@ -5,6 +5,11 @@ output:
     - file
     - linter
   show-stats: false
+  formats:
+    text:
+      path: stdout
+    sarif:
+      path: golangci-lint.sarif
 linters:
   default: none
   enable:
