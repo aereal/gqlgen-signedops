@@ -6,6 +6,8 @@ on:
       - opened
       - reopened
       - synchronize
+env:
+  GOEXPERIMENT: jsonv2
 jobs:
   ok:
     needs:
